@@ -1,0 +1,14 @@
+# LiveKit Agents SDK
+livekit-agents>=0.10.0
+livekit-plugins-google>=0.8.0
+livekit-plugins-anam>=0.1.0
+
+# Google Gemini SDK (for Gemini Live and Vision)
+google-generativeai>=0.8.0
+
+# Image processing (for screen share analysis)
+Pillow>=10.0.0
+
+# Other utilities
+python-dotenv>=1.0.0
+
