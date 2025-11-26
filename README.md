@@ -1,5 +1,11 @@
 # AI Onboarding Assistant - Anam + LiveKit + Gemini Demo
 
+## Demo Video
+<a href="https://youtu.be/9mxK5HdHzes">
+  <img src="https://img.youtube.com/vi/9mxK5HdHzes/0.jpg" alt="Demo Video" width="400">
+</a>
+
+
 This demo showcases **Anam's LiveKit integration** with a custom use case for employee onboarding. It combines Anam's avatar technology with Gemini's AI capabilities to create an intelligent, visual onboarding assistant.
 
 **✨ Key Demo Features:**
@@ -14,11 +20,8 @@ This demo showcases **Anam's LiveKit integration** with a custom use case for em
 Also available for:
 [Android](https://github.com/livekit-examples/agent-starter-android) • [Flutter](https://github.com/livekit-examples/agent-starter-flutter) • [Swift](https://github.com/livekit-examples/agent-starter-swift) • [React Native](https://github.com/livekit-examples/agent-starter-react-native)
 
-<picture>
-  <source srcset="./.github/assets/readme-hero-dark.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="./.github/assets/readme-hero-light.webp" media="(prefers-color-scheme: light)">
-  <img src="./.github/assets/readme-hero-light.webp" alt="App screenshot">
-</picture>
+
+![App screenshot](./public/screenshot.png)
 
 ### Features:
 
