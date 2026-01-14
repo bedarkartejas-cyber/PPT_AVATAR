@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Presentation Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+</head>
+<body>
+
+    <div class="container" id="setup-screen">
+        <header>
+            <div class="logo">📊 AI Presenter</div>
+            <div class="status-badge" id="status-badge">Ready</div>
+        </header>
+
+        <div class="card" id="upload-card">
+            <h2>1. Upload Presentation</h2>
+            <p class="subtitle">Upload your PowerPoint (.pptx) file to begin.</p>
+            
+            <div class="upload-area" id="drop-zone">
+                <input type="file" id="file-input" accept=".pptx" hidden>
+                <div class="icon">📁</div>
+                <p>Drag & Drop or <span class="link">Browse</span></p>
+                <p class="file-name" id="file-name"></p>
+            </div>
+
+            <div class="progress-container" id="progress-container" style="display: none;">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+
+            <button id="upload-btn" class="btn primary" disabled>Upload Presentation</button>
+        </div>
+
+        <div class="card disabled" id="connect-card">
+            <h2>2. Start Session</h2>
+            <p class="subtitle">Enter the immersive presentation mode.</p>
+            
+            <div id="slide-info" class="info-box" style="display: none;">
+                ✅ <span id="slide-count">0</span> slides ready.
+            </div>
+
+            <button id="connect-btn" class="btn success" disabled>Start Presentation</button>
+        </div>
+    </div>
+
+    <div id="presentation-screen" style="display: none;">
+        <div class="presentation-header">
+            <div class="logo white">🔴 Live Presentation</div>
+            <button class="btn-small" onclick="location.reload()">End Session</button>
+        </div>
+        
+        <div class="video-wrapper" id="video-container">
+            <div class="placeholder-text">Waiting for Avatar video stream...</div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

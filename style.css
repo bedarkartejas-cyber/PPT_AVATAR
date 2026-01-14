@@ -1,0 +1,101 @@
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success: #16a34a;
+    --bg: #f3f4f6;
+    --card-bg: #ffffff;
+    --text-main: #1f2937;
+    --text-sub: #6b7280;
+    --border: #e5e7eb;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg);
+    margin: 0;
+    overflow-x: hidden; /* Prevent scroll on full screen */
+}
+
+/* SCREEN 1: SETUP CONTAINER */
+.container {
+    max-width: 480px;
+    margin: 50px auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* SCREEN 2: PRESENTATION CONTAINER */
+#presentation-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+}
+
+.presentation-header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+    position: absolute;
+    top: 0;
+    width: 100%;
+    box-sizing: border-box;
+    z-index: 10;
+}
+
+.logo.white { color: white; font-weight: 600; }
+
+.video-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+/* LIVEKIT VIDEO STYLES */
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Keeps aspect ratio */
+    max-height: 100vh;
+}
+
+.placeholder-text {
+    color: #666;
+    font-size: 1.2rem;
+}
+
+/* ... (Keep existing Card, Button, and Upload styles below) ... */
+header { display: flex; justify-content: space-between; align-items: center; }
+.logo { font-weight: 600; font-size: 1.25rem; color: var(--text-main); }
+.status-badge { padding: 4px 12px; background: #e5e7eb; border-radius: 999px; font-size: 0.8rem;}
+
+.card { background: var(--card-bg); padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.card.disabled { opacity: 0.5; pointer-events: none; }
+
+.upload-area { border: 2px dashed var(--border); border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; transition: 0.2s; margin-bottom: 20px; }
+.upload-area:hover { border-color: var(--primary); }
+.icon { font-size: 2rem; margin-bottom: 10px; }
+.link { color: var(--primary); text-decoration: underline; }
+
+.btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 500; font-size: 1rem; cursor: pointer; color: white; }
+.btn:disabled { background-color: #d1d5db; cursor: not-allowed; }
+.btn.primary { background-color: var(--primary); }
+.btn.success { background-color: var(--success); }
+.btn-small { padding: 8px 16px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; border-radius: 6px; cursor: pointer; backdrop-filter: blur(4px); }
+.btn-small:hover { background: rgba(255,255,255,0.3); }
+
+.progress-container { width: 100%; background: var(--border); height: 6px; border-radius: 99px; overflow: hidden; margin-bottom: 20px; }
+.progress-bar { height: 100%; width: 0%; background: var(--primary); transition: width 0.3s; }
+.info-box { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 12px; border-radius: 8px; margin-bottom: 20px; }

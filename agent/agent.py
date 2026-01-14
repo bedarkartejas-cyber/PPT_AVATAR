@@ -1,189 +1,132 @@
-"""
-LiveKit Agent with Anam Avatar + Gemini Live for Onboarding Assistant
-
-- Anam avatar for visual presence and TTS
-- Gemini Live for multimodal conversation (audio + screen share vision)
-- Browser control tools for form filling
-"""
-
 import asyncio
-import json
 import logging
 import os
+import json
+import sys
 from pathlib import Path
-from typing import Optional
-
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+# --- 1. SETUP PATHS & LOGGING ---
+CURRENT_DIR = Path(__file__).parent.absolute()
+PARENT_DIR = CURRENT_DIR.parent
+sys.path.append(str(PARENT_DIR))
 
-from livekit import rtc  # noqa: E402
-from livekit.agents import (  # noqa: E402
+# Load .env from agent folder or root
+if (CURRENT_DIR / ".env").exists():
+    load_dotenv(CURRENT_DIR / ".env")
+elif (PARENT_DIR / ".env").exists():
+    load_dotenv(PARENT_DIR / ".env")
+
+from livekit import rtc
+from livekit.agents import (
     Agent,
     AgentSession,
     AutoSubscribe,
     JobContext,
     WorkerOptions,
     cli,
-    function_tool,
 )
-from livekit.agents.voice import VoiceActivityVideoSampler, room_io  # noqa: E402
-from livekit.plugins import anam, google  # noqa: E402
+from livekit.agents.voice import VoiceActivityVideoSampler, room_io
+from livekit.plugins import anam, google
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("ppt-agent")
 
-# Reduce noise from verbose libraries
-for lib in ["websockets", "httpx", "httpcore"]:
-    logging.getLogger(lib).setLevel(logging.WARNING)
+# --- 2. LOAD PRESENTATION DATA ---
+def get_presentation_data():
+    """Reads the JSON file created by the server"""
+    json_path = PARENT_DIR / "presentation.json"
+    
+    if json_path.exists():
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                # Convert list/dict to string for the AI prompt
+                context_str = json.dumps(data, indent=2, ensure_ascii=False)
+                return context_str, len(data)
+        except Exception as e:
+            logger.error(f"Error reading JSON: {e}")
+    return None, 0
 
-# Global room reference for function tools
-_current_room: Optional[rtc.Room] = None
+# --- 3. SYSTEM INSTRUCTIONS ---
+def build_instructions():
+    context_str, slide_count = get_presentation_data()
+    
+    if context_str:
+        intro = f"I have loaded your presentation with {slide_count} slides. I am ready to present. Shall I start with the first slide?"
+        source_material = f"### PRESENTATION CONTENT:\n{context_str}"
+    else:
+        intro = "Hello! I am ready to present, but I don't see a presentation file yet. Please upload your PPT."
+        source_material = "No presentation loaded yet."
 
+    instructions = f"""
+    You are an **Expert Presentation Speaker**.
 
-async def send_control_command(command: str, data: dict) -> None:
-    """Send a control command to the frontend via data channel."""
-    if _current_room is None:
-        logger.error("Room not initialized")
-        return
+    {source_material}
 
-    message = json.dumps({"type": command, **data})
-    await _current_room.local_participant.publish_data(
-        message.encode("utf-8"),
-        reliable=True,
-        topic="browser-control",
-    )
-    logger.info(f"→ {command}: {data}")
+    ### YOUR JOB:
+    1.  **Explain in Detail:** Do not just read the text. Explain the concepts on each slide like a professor or professional speaker.
+    2.  **Navigation:** If the user says "Next", move to the content of the next slide.
+    3.  **Q&A:** Answer any questions the user has about the specific slide content.
 
-
-@function_tool
-async def fill_form_field(field_identifier: str, value: str) -> str:
-    """Fill in a form field on the current page.
-
-    Args:
-        field_identifier: The field to fill (e.g. "Full Name", "Email Address")
-        value: The value to enter into the field
-
-    Returns:
-        A confirmation message
+    ### CRITICAL RULES:
+    - **Voice Style:** Professional, engaging, and clear.
+    - **Start:** Immediately welcome the user and confirm you have the slides (if loaded).
     """
-    logger.info(f"🔧 fill_form_field({field_identifier}, {value})")
-    try:
-        await send_control_command(
-            "fill_field", {"field": field_identifier, "value": value}
-        )
-        return "ok"
-    except asyncio.CancelledError:
-        logger.warning(f"⚠️ fill_form_field cancelled: {field_identifier}")
-        raise
-
-
-@function_tool
-async def click_element(element_description: str) -> str:
-    """Click a button or link on the page.
-
-    Args:
-        element_description: Button/element text (e.g. "Submit", "Next")
-
-    Returns:
-        A confirmation message
-    """
-    logger.info(f"🔧 click_element({element_description})")
-    try:
-        await send_control_command("click", {"element": element_description})
-        return "ok"
-    except asyncio.CancelledError:
-        logger.warning(f"⚠️ click_element cancelled: {element_description}")
-        raise
-
+    return instructions, intro
 
 async def entrypoint(ctx: JobContext):
-    """Main entry point for the agent."""
-    logger.info("🚀 Agent starting...")
-
+    logger.info(f"🚀 Connecting to room: {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
-    logger.info(f"✅ Connected to room: {ctx.room.name}")
-
-    global _current_room
-    _current_room = ctx.room
-
-    # Agent instructions - concise and explicit about form fields
-    instructions = (
-        "You are Maya, a friendly HR onboarding assistant. "
-        "You can see the user's screen share.\n\n"
-        "THE FORM HAS THESE 6 FIELDS (fill ALL before submitting):\n"
-        "1. Full Name\n"
-        "2. Email Address\n"
-        "3. Phone Number\n"
-        "4. Department\n"
-        "5. Job Title\n"
-        "6. Start Date\n\n"
-        "Tools:\n"
-        "- fill_form_field(field_name, value) - use EXACT field names above\n"
-        "- click_element('Submit') - ONLY after ALL 6 fields are filled\n\n"
-        "IMPORTANT: You MUST fill ALL 6 fields before clicking Submit."
-    )
 
     try:
-        # Get API keys
         anam_api_key = os.environ.get("ANAM_API_KEY")
-        if not anam_api_key:
-            raise ValueError("ANAM_API_KEY not set")
+        gemini_api_key = os.environ.get("GEMINI_API_KEY")
+        avatar_id = os.environ.get("ANAM_AVATAR_ID")
 
-        gemini_api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get(
-            "GOOGLE_API_KEY"
-        )
-        if not gemini_api_key:
-            raise ValueError("GEMINI_API_KEY or GOOGLE_API_KEY not set")
+        if not all([anam_api_key, gemini_api_key, avatar_id]):
+            logger.error("❌ Missing API Keys in .env file")
+            return
 
-        avatar_id = os.environ.get("ANAM_AVATAR_ID") or os.environ.get(
-            "ANAM_PERSONA_ID"
-        )
-        if not avatar_id:
-            raise ValueError("ANAM_AVATAR_ID or ANAM_PERSONA_ID not set")
+        # Load fresh instructions
+        instructions_text, greeting_text = build_instructions()
 
-        # Create Gemini Live model
+        # --- FIX: USE THE CORRECT MODEL NAME ---
+        # gemini-2.0-flash-exp is the current stable experimental version for audio
         llm = google.realtime.RealtimeModel(
-            model="gemini-2.0-flash-exp",
+            model="gemini-2.5-flash-native-audio-preview-09-2025", 
             api_key=gemini_api_key,
-            voice="Aoede",
-            instructions=instructions,
+            voice="Aoede", 
+            instructions=instructions_text,
+            temperature=0.8,
         )
 
-        # Create Anam Avatar session
         avatar = anam.AvatarSession(
-            persona_config=anam.PersonaConfig(name="Maya", avatarId=avatar_id),
+            persona_config=anam.PersonaConfig(name="Presenter", avatarId=avatar_id),
             api_key=anam_api_key,
             api_url="https://api.anam.ai",
         )
 
-        # Create agent session with tools
         session = AgentSession(
             llm=llm,
-            video_sampler=VoiceActivityVideoSampler(
-                speaking_fps=0.2,  # 1 frame every 5 sec when speaking
-                silent_fps=0.1,  # 1 frame every 10 sec when silent
-            ),
-            tools=[fill_form_field, click_element],
+            video_sampler=VoiceActivityVideoSampler(speaking_fps=0.5, silent_fps=0.1),
+            preemptive_generation=True, 
         )
 
-        # Start avatar and agent
         await avatar.start(session, room=ctx.room)
         await session.start(
-            agent=Agent(instructions=instructions),
+            agent=Agent(instructions=instructions_text),
             room=ctx.room,
             room_input_options=room_io.RoomInputOptions(video_enabled=True),
         )
 
-        logger.info("✅ Agent ready - Anam avatar + Gemini Live")
-        await asyncio.sleep(1.5)
+        # Force the greeting to ensure audio starts
+        session.generate_reply(instructions=f"Say exactly: '{greeting_text}'")
+        
+        logger.info("✅ Agent Active & Speaking")
 
     except Exception as e:
-        logger.error(f"Failed to start: {e}")
-        raise
-
+        logger.error(f"❌ Runtime Error: {e}", exc_info=True)
 
 if __name__ == "__main__":
-    logger.info("Starting agent worker...")
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
