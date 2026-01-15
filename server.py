@@ -2,12 +2,14 @@ import os
 import random
 import logging
 import json
+import comtypes.client  # Client to talk to PowerPoint
+import pythoncom        # <--- REQUIRED FOR THREADING FIX
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 from livekit import api
 from werkzeug.utils import secure_filename
-from pptx import Presentation  # Ensure python-pptx is installed
+from pptx import Presentation
 
 load_dotenv()
 
@@ -17,47 +19,108 @@ logger = logging.getLogger('ppt-server')
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
+# Folders for storage
 UPLOAD_FOLDER = 'uploads'
+SLIDES_FOLDER = 'slides'  
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(SLIDES_FOLDER, exist_ok=True)
 
-# --- 1. PPT PROCESSOR (Moved here to avoid import errors) ---
-def ppt_to_json(ppt_path, json_path="presentation.json"):
+# --- 1. PPT PROCESSOR (FIXED FOR THREADING) ---
+def process_ppt(ppt_path):
+    slides_data = []
+    
+    # *** CRITICAL FIX: Initialize Windows COM for this thread ***
+    pythoncom.CoInitialize() 
+    
+    # A. EXPORT IMAGES (Robust Method)
     try:
-        if not os.path.exists(ppt_path):
-            return {}
+        abs_ppt_path = os.path.abspath(ppt_path)
+        abs_slides_folder = os.path.abspath(SLIDES_FOLDER)
 
-        prs = Presentation(ppt_path)
-        data = []
+        # Clear old slides
+        for f in os.listdir(abs_slides_folder):
+            file_path = os.path.join(abs_slides_folder, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
 
-        for i, slide in enumerate(prs.slides, start=1):
-            slide_content = f"Slide {i}: "
-            
-            # Extract text
-            texts = []
-            for shape in slide.shapes:
-                if shape.has_text_frame:
-                    text = shape.text.strip()
-                    if text:
-                        texts.append(text)
-            
-            if texts:
-                slide_content += " ".join(texts)
-                data.append(slide_content)
+        print(f"⏳ Connecting to PowerPoint...")
+        # Force a new instance to avoid conflicts
+        powerpoint = comtypes.client.CreateObject("PowerPoint.Application")
+        # powerpoint.Visible = 1 # Uncomment if you want to see it happen
+        
+        presentation = powerpoint.Presentations.Open(abs_ppt_path, WithWindow=False)
+        
+        print(f"📸 Exporting {len(presentation.Slides)} slides...")
+        
+        for i, slide in enumerate(presentation.Slides, start=1):
+            image_path = os.path.join(abs_slides_folder, f"Slide{i}.jpg")
+            slide.Export(image_path, "JPG")
+            print(f"   -> Saved Slide{i}.jpg")
 
-        # Save to root directory so Agent can find it
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4, ensure_ascii=False)
-
-        return data
+        presentation.Close()
+        # powerpoint.Quit() 
+        
+        print(f"✅ All images exported to {SLIDES_FOLDER}/")
 
     except Exception as e:
-        logger.error(f"Error converting PPT: {e}")
+        print(f"❌ PowerPoint Error: {e}")
+        # Note: We don't return [] here, we continue to extract text 
+        # so the agent can still read even if images fail.
+
+    # B. EXTRACT TEXT (For the Agent)
+    try:
+        if not os.path.exists(ppt_path):
+            return []
+
+        prs = Presentation(ppt_path)
+        for i, slide in enumerate(prs.slides, start=1):
+            slide_text = []
+            
+            # Get Title
+            if slide.shapes.title and slide.shapes.title.text:
+                slide_text.append(f"Title: {slide.shapes.title.text}")
+
+            # Get Other Text
+            for shape in slide.shapes:
+                if shape.has_text_frame and shape != slide.shapes.title:
+                    text = shape.text.strip()
+                    if text:
+                        slide_text.append(text)
+            
+            image_filename = f"Slide{i}.jpg"
+            
+            # Verify if image actually exists
+            if not os.path.exists(os.path.join(SLIDES_FOLDER, image_filename)):
+                print(f"⚠️ Warning: Image for Slide {i} was not found.")
+
+            slides_data.append({
+                "slide_number": i,
+                "image_url": f"/slides/{image_filename}", 
+                "content": " ".join(slide_text)
+            })
+
+        # Save data for Agent
+        with open("presentation.json", "w", encoding="utf-8") as f:
+            json.dump(slides_data, f, indent=4, ensure_ascii=False)
+
+        return slides_data
+
+    except Exception as e:
+        logger.error(f"❌ Error reading PPT text: {e}")
         return []
+    finally:
+        # Good practice to uninitialize
+        pythoncom.CoUninitialize()
 
 # --- 2. ROUTES ---
+
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
+
+@app.route('/slides/<path:filename>')
+def serve_slide(filename):
+    return send_from_directory(SLIDES_FOLDER, filename)
 
 @app.route('/api/upload-ppt', methods=['POST'])
 def upload_ppt():
@@ -73,9 +136,12 @@ def upload_ppt():
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
         
-        # Call the local function
-        data = ppt_to_json(filepath, "presentation.json")
+        # Process the file
+        data = process_ppt(filepath)
         
+        if not data:
+             return jsonify({"error": "Processing failed. Check server logs."}), 500
+
         return jsonify({
             "status": "success", 
             "message": "Presentation processed",

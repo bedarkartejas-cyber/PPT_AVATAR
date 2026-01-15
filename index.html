@@ -3,60 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Presentation Assistant</title>
+    <title>Neural Presenter AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 </head>
 <body>
 
-    <div class="container" id="setup-screen">
-        <header>
-            <div class="logo">📊 AI Presenter</div>
-            <div class="status-badge" id="status-badge">Ready</div>
+    <div class="ambient-light one"></div>
+    <div class="ambient-light two"></div>
+
+    <div class="app-container" id="setup-screen">
+        
+        <header class="glass-header">
+            <div class="brand">
+                <div class="logo-icon">✨</div>
+                <div class="logo-text">Neural Presenter <span class="badge">PRO</span></div>
+            </div>
+            <div class="status-indicator">
+                <span class="dot"></span> System Ready
+            </div>
         </header>
 
-        <div class="card" id="upload-card">
-            <h2>1. Upload Presentation</h2>
-            <p class="subtitle">Upload your PowerPoint (.pptx) file to begin.</p>
-            
-            <div class="upload-area" id="drop-zone">
-                <input type="file" id="file-input" accept=".pptx" hidden>
-                <div class="icon">📁</div>
-                <p>Drag & Drop or <span class="link">Browse</span></p>
-                <p class="file-name" id="file-name"></p>
+        <main class="main-content">
+            <div class="hero-text">
+                <h1>AI-Powered <br>Presentation Suite</h1>
+                <p>Upload your slides and let the neural avatar take the stage.</p>
             </div>
 
-            <div class="progress-container" id="progress-container" style="display: none;">
-                <div class="progress-bar" id="progress-bar"></div>
+            <div class="glass-card" id="upload-card">
+                <div class="card-header">
+                    <div class="step-number">01</div>
+                    <h3>Upload Deck</h3>
+                </div>
+                
+                <div class="upload-zone" id="drop-zone">
+                    <input type="file" id="file-input" accept=".pptx" hidden>
+                    <div class="upload-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <p class="upload-title">Click or Drag PPTX Here</p>
+                    <p class="upload-sub" id="file-name">Supported format: .pptx</p>
+                </div>
+
+                <div class="progress-wrapper" id="progress-container" style="display: none;">
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progress-bar"></div>
+                    </div>
+                    <div class="progress-status">Processing slides...</div>
+                </div>
+
+                <button id="upload-btn" class="action-btn" disabled>
+                    <span>Upload & Process</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
             </div>
 
-            <button id="upload-btn" class="btn primary" disabled>Upload Presentation</button>
-        </div>
+            <div class="glass-card disabled" id="connect-card">
+                <div class="card-header">
+                    <div class="step-number">02</div>
+                    <h3>Launch Studio</h3>
+                </div>
+                <p class="card-desc">Initialize the AI Avatar and synchronize slides.</p>
+                
+                <div id="slide-info" class="meta-badge" style="display: none;">
+                    <span class="icon">📑</span> <span id="slide-count">0</span> Slides Ready
+                </div>
 
-        <div class="card disabled" id="connect-card">
-            <h2>2. Start Session</h2>
-            <p class="subtitle">Enter the immersive presentation mode.</p>
-            
-            <div id="slide-info" class="info-box" style="display: none;">
-                ✅ <span id="slide-count">0</span> slides ready.
+                <button id="connect-btn" class="action-btn primary-glow" disabled>
+                    <span>Start Presentation</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </button>
             </div>
-
-            <button id="connect-btn" class="btn success" disabled>Start Presentation</button>
-        </div>
+        </main>
     </div>
 
     <div id="presentation-screen" style="display: none;">
-        <div class="presentation-header">
-            <div class="logo white">🔴 Live Presentation</div>
-            <button class="btn-small" onclick="location.reload()">End Session</button>
-        </div>
+        <nav class="studio-nav">
+            <div class="brand">
+                <span class="live-dot"></span> 
+                LIVE ON AIR
+            </div>
+            <div class="controls">
+                <button class="nav-btn" onclick="location.reload()">End Session</button>
+            </div>
+        </nav>
         
-        <div class="video-wrapper" id="video-container">
-            <div class="placeholder-text">Waiting for Avatar video stream...</div>
-        </div>
+        <div id="video-container"></div>
     </div>
 
     <script src="app.js"></script>
