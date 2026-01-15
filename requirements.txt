@@ -1,0 +1,9 @@
+livekit-agents>=0.12.0
+livekit-plugins-google>=0.12.0
+livekit-plugins-anam>=0.1.0
+google-generativeai>=0.8.0
+flask>=3.0.0
+flask-cors>=4.0.0
+waitress>=3.0.0
+python-dotenv>=1.0.0
+python-pptx>=0.6.23
